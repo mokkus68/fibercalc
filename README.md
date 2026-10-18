@@ -1,4 +1,4 @@
-# OptiFiber Pro - Calcolatore Attenuazione Fibra Ottica
+# OptiCalc Pro - Calcolatore Attenuazione Fibra Ottica
 
 Applicazione web professionale ideata per tecnici, giuntisti e progettisti di reti in fibra ottica per il calcolo rapido dell'attenuazione totale e del bilancio ottico di una tratta monomodale (G.652).
 
