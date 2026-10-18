@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OptiFiber Pro - Calcolatore Attenuazione Fibra Ottica</title>
+    
+    <!-- PWA & Theme Meta -->
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- html2pdf.js per l'esportazione PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(21, 29, 46, 0.7);
+            --card-border: rgba(56, 189, 248, 0.2);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.4);
+            --secondary: #818cf8;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --accent-green: #22c55e;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --input-bg: rgba(15, 23, 42, 0.8);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.12) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 12px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 520px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 28px 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5),
+                        0 0 30px rgba(56, 189, 248, 0.1);
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .header p {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            margin-top: 4px;
+        }
+
+        /* Visual SVG Animation Box */
+        .visual-box {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fiber-svg {
+            width: 100%;
+            height: 60px;
+        }
+
+        .laser-beam {
+            stroke-dasharray: 8, 8;
+            animation: beamFlow 1s linear infinite;
+        }
+
+        @keyframes beamFlow {
+            to { stroke-dashoffset: -16; }
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: #ffffff;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.25s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        .sign-toggle-btn {
+            position: absolute;
+            right: 8px;
+            background: rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            color: var(--primary);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sign-toggle-btn:active {
+            transform: scale(0.95);
+            background: var(--primary);
+            color: #000;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Results Box */
+        .results-card {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 18px;
+            margin-top: 24px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            font-size: 0.9rem;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .result-val {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--primary);
+        }
+
+        .result-main {
+            text-align: center;
+            padding: 12px 0 16px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+            margin-bottom: 12px;
+        }
+
+        .result-main-val {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        /* Signal Meter */
+        .meter-container {
+            margin-top: 14px;
+        }
+
+        .meter-bar-bg {
+            height: 8px;
+            background: rgba(148, 163, 184, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .meter-bar-fill {
+            height: 100%;
+            width: 80%;
+            background: var(--accent-green);
+            transition: width 0.4s ease, background-color 0.4s ease;
+        }
+
+        .status-badge {
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .status-good { background: rgba(34, 197, 94, 0.2); color: var(--accent-green); }
+        .status-warn { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+        .status-bad { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+
+        /* Action Buttons */
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-action {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #ffffff;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-action:hover {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: var(--primary);
+        }
+
+        .btn-action:active {
+            transform: scale(0.97);
+        }
+
+        .btn-full {
+            grid-column: span 2;
+        }
+
+        /* Collapsible Section */
+        details {
+            margin-top: 16px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 10px;
+            padding: 10px 14px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        summary {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-sub);
+            cursor: pointer;
+            outline: none;
+        }
+
+        summary:hover {
+            color: var(--primary);
+        }
+
+        .details-content {
+            margin-top: 12px;
+        }
+
+        /* Hidden Print Template for PDF */
+        #pdfReportTemplate {
+            display: none;
+            background: #ffffff;
+            color: #0f172a;
+            padding: 24px;
+            font-family: Arial, sans-serif;
+        }
+
+        #pdfReportTemplate h2 {
+            color: #0284c7;
+            border-bottom: 2px solid #0284c7;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+
+        #pdfReportTemplate table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        #pdfReportTemplate th, #pdfReportTemplate td {
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        #pdfReportTemplate th {
+            background-color: #f1f5f9;
+        }
+
+        .pdf-footer {
+            margin-top: 24px;
+            font-size: 0.75rem;
+            color: #64748b;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container" id="appContent">
+    <!-- Header -->
+    <div class="header">
+        <h1>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+            OptiFiber Pro
+        </h1>
+        <p>Calcolo Attenuazione Tratta Fibra Monomodale</p>
+    </div>
+
+    <!-- Visual Interactive Fiber Beam SVG -->
+    <div class="visual-box">
+        <svg class="fiber-svg" viewBox="0 0 400 60">
+            <!-- Tx -->
+            <rect x="10" y="15" width="30" height="30" rx="6" fill="#38bdf8" fill-opacity="0.2" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="25" y="34" font-size="10" fill="#38bdf8" text-anchor="middle" font-weight="bold">TX</text>
+
+            <!-- Rx -->
+            <rect x="360" y="15" width="30" height="30" rx="6" fill="#818cf8" fill-opacity="0.2" stroke="#818cf8" stroke-width="1.5"/>
+            <text x="375" y="34" font-size="10" fill="#818cf8" text-anchor="middle" font-weight="bold">RX</text>
+
+            <!-- Cladding -->
+            <line x1="40" y1="30" x2="360" y2="30" stroke="#1e293b" stroke-width="14" stroke-linecap="round"/>
+            <!-- Core -->
+            <line x1="40" y1="30" x2="360" y2="30" stroke="#0284c7" stroke-width="4"/>
+            <!-- Animated Beam -->
+            <line id="laserBeam" class="laser-beam" x1="40" y1="30" x2="360" y2="30" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+
+            <!-- Splice Markers Dynamic Container -->
+            <g id="spliceMarkersGroup"></g>
+        </svg>
+    </div>
+
+    <!-- Form Inputs -->
+    <div class="form-group">
+        <div class="label-row">
+            <label for="powerIn">Potenza in Ingresso (P<sub>in</sub>)</label>
+            <span class="badge">dBm</span>
+        </div>
+        <div class="input-wrapper">
+            <input type="text" id="powerIn" inputmode="text" placeholder="es. 0 o -3.5" value="0">
+            <button type="button" class="sign-toggle-btn" onclick="toggleSign()">+/-</button>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="form-group">
+            <div class="label-row">
+                <label for="length">Tratta</label>
+                <span class="badge">metri</span>
+            </div>
+            <input type="number" id="length" step="1" min="0" placeholder="1000" value="1000">
+        </div>
+
+        <div class="form-group">
+            <div class="label-row">
+                <label for="wavelength">Finestra (&lambda;)</label>
+            </div>
+            <select id="wavelength" onchange="updateWavelength()">
+                <option value="0.35">1310 nm (~0.35 dB/km)</option>
+                <option value="0.21" selected>1550 nm (~0.21 dB/km)</option>
+                <option value="0.25">1490 nm (~0.25 dB/km)</option>
+                <option value="0.23">1625 nm (~0.23 dB/km)</option>
+                <option value="custom">Personalizzato</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group" id="customCoefGroup" style="display: none;">
+        <div class="label-row">
+            <label for="customCoef">Coefficiente Fibra</label>
+            <span class="badge">dB/km</span>
+        </div>
+        <input type="number" id="customCoef" step="0.01" value="0.35">
+    </div>
+
+    <!-- Collapsible Advanced Losses -->
+    <details>
+        <summary>➕ Aggiungi Giunzioni & Connettori</summary>
+        <div class="details-content grid-2">
+            <div class="form-group">
+                <label for="splicesCount">N° Giunzioni (0.1 dB)</label>
+                <input type="number" id="splicesCount" min="0" value="0" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label for="connectorsCount">N° Connettori (0.5 dB)</label>
+                <input type="number" id="connectorsCount" min="0" value="2" placeholder="2">
+            </div>
+        </div>
+    </details>
+
+    <!-- Results Display -->
+    <div class="results-card">
+        <div class="result-main">
+            <span style="font-size: 0.82rem; color: var(--text-sub); font-weight: 600;">POTENZA IN USCITA (P<sub>out</sub>)</span>
+            <div class="result-main-val" id="powerOutVal">-0.71 dBm</div>
+            <div style="margin-top: 6px;">
+                <span class="status-badge status-good" id="statusBadge">Segnale Ottimale</span>
+            </div>
+        </div>
+
+        <div class="result-row">
+            <span style="color: var(--text-sub);">Attenuazione Cavo Fibra:</span>
+            <span class="result-val" id="fiberLossVal">0.21 dB</span>
+        </div>
+        <div class="result-row">
+            <span style="color: var(--text-sub);">Perdite Accessorie (Giunzioni/Conn.):</span>
+            <span class="result-val" id="extraLossVal">1.00 dB</span>
+        </div>
+        <div class="result-row">
+            <span style="color: var(--text-sub);">Attenuazione Totale Tratta:</span>
+            <span class="result-val" id="totalLossVal" style="color: var(--primary);">1.21 dB</span>
+        </div>
+
+        <!-- Signal Budget Bar -->
+        <div class="meter-container">
+            <div class="label-row">
+                <span style="font-size: 0.78rem; color: var(--text-sub);">Budget Ottico Rimanente</span>
+                <span style="font-size: 0.78rem; font-weight: 700;" id="meterPercent">95%</span>
+            </div>
+            <div class="meter-bar-bg">
+                <div class="meter-bar-fill" id="meterFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Action Buttons -->
+    <div class="btn-group">
+        <button class="btn-action" onclick="exportReportTXT()">
+            📄 Esporta TXT
+        </button>
+        <button class="btn-action" onclick="exportReportPDF()">
+            📑 Esporta PDF
+        </button>
+        <button class="btn-action btn-full" onclick="copyReportToClipboard()">
+            📋 Copia Riepilogo negli Appunti
+        </button>
+    </div>
+</div>
+
+<!-- Hidden PDF Report Template -->
+<div id="pdfReportTemplate">
+    <h2>OptiFiber Pro - Report Collaudo Tratta Fibra</h2>
+    <p><strong>Data Report:</strong> <span id="pdfDate"></span></p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th colspan="2">Parametri di Ingresso</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Potenza Trasmettitore (P<sub>in</sub>)</td>
+                <td><strong id="pdfPin"></strong> dBm</td>
+            </tr>
+            <tr>
+                <td>Lunghezza Tratta</td>
+                <td><strong id="pdfLength"></strong> m (<span id="pdfKm"></span> km)</td>
+            </tr>
+            <tr>
+                <td>Lunghezza d'onda (&lambda;)</td>
+                <td><span id="pdfWavelength"></span></td>
+            </tr>
+            <tr>
+                <td>Coefficiente Attenuazione Fibra</td>
+                <td><span id="pdfCoef"></span> dB/km</td>
+            </tr>
+            <tr>
+                <td>Giunzioni a Fusione</td>
+                <td><span id="pdfSplices"></span> (0.1 dB cad.)</td>
+            </tr>
+            <tr>
+                <td>Connettori Ottici</td>
+                <td><span id="pdfConnectors"></span> (0.5 dB cad.)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table style="margin-top: 20px;">
+        <thead>
+            <tr>
+                <th colspan="2">Risultati e Bilancio Ottico</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Attenuazione Cavo Fibra</td>
+                <td><strong id="pdfFiberLoss"></strong> dB</td>
+            </tr>
+            <tr>
+                <td>Perdite Accessorie (Giunzioni + Connettori)</td>
+                <td><strong id="pdfExtraLoss"></strong> dB</td>
+            </tr>
+            <tr>
+                <td><strong>Attenuazione Totale Tratta</strong></td>
+                <td><strong id="pdfTotalLoss" style="color: #0284c7;"></strong> dB</td>
+            </tr>
+            <tr>
+                <td><strong>Potenza Calcolata in Ricezione (P<sub>out</sub>)</strong></td>
+                <td><strong id="pdfPout" style="color: #0284c7;"></strong> dBm</td>
+            </tr>
+            <tr>
+                <td>Stato Qualità Segnale</td>
+                <td><strong id="pdfStatus"></strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="pdf-footer">
+        Generato con OptiFiber Pro App - Strumento di verifica e calcolo per reti in fibra ottica monomodale.
+    </div>
+</div>
+
+<script>
+    // DOM Elements
+    const powerInInput = document.getElementById('powerIn');
+    const lengthInput = document.getElementById('length');
+    const wavelengthSelect = document.getElementById('wavelength');
+    const customCoefGroup = document.getElementById('customCoefGroup');
+    const customCoefInput = document.getElementById('customCoef');
+    const splicesInput = document.getElementById('splicesCount');
+    const connectorsInput = document.getElementById('connectorsCount');
+
+    const powerOutVal = document.getElementById('powerOutVal');
+    const fiberLossVal = document.getElementById('fiberLossVal');
+    const extraLossVal = document.getElementById('extraLossVal');
+    const totalLossVal = document.getElementById('totalLossVal');
+    const statusBadge = document.getElementById('statusBadge');
+    const meterFill = document.getElementById('meterFill');
+    const meterPercent = document.getElementById('meterPercent');
+    const spliceMarkersGroup = document.getElementById('spliceMarkersGroup');
+
+    // Toggle +/- sign for mobile keyboards
+    function toggleSign() {
+        let val = powerInInput.value.trim();
+        if (val.startsWith('-')) {
+            powerInInput.value = val.substring(1);
+        } else if (val !== '' && val !== '0') {
+            powerInInput.value = '-' + val;
+        } else if (val === '0') {
+            powerInInput.value = '-';
+        }
+        calculate();
+    }
+
+    function updateWavelength() {
+        if (wavelengthSelect.value === 'custom') {
+            customCoefGroup.style.display = 'block';
+        } else {
+            customCoefGroup.style.display = 'none';
+        }
+        calculate();
+    }
+
+    function calculate() {
+        // Parse Inputs replacing comma with dot
+        const pinStr = powerInInput.value.replace(',', '.');
+        const pin = parseFloat(pinStr);
+        const meters = parseFloat(lengthInput.value);
+        
+        let coefPerKm = (wavelengthSelect.value === 'custom') 
+            ? parseFloat(customCoefInput.value) 
+            : parseFloat(wavelengthSelect.value);
+
+        const splices = parseInt(splicesInput.value) || 0;
+        const connectors = parseInt(connectorsInput.value) || 0;
+
+        if (isNaN(pin) || isNaN(meters) || isNaN(coefPerKm) || meters < 0) {
+            powerOutVal.textContent = "Dati Errati";
+            totalLossVal.textContent = "-";
+            return;
+        }
+
+        // Calculations
+        const km = meters / 1000;
+        const fiberLoss = km * coefPerKm;
+        const extraLoss = (splices * 0.1) + (connectors * 0.5);
+        const totalLoss = fiberLoss + extraLoss;
+        const pout = pin - totalLoss;
+
+        // Display Results
+        powerOutVal.textContent = pout.toFixed(2) + " dBm";
+        fiberLossVal.textContent = fiberLoss.toFixed(2) + " dB";
+        extraLossVal.textContent = extraLoss.toFixed(2) + " dB";
+        totalLossVal.textContent = totalLoss.toFixed(2) + " dB";
+
+        // Update Signal Quality Meter & Badges
+        updateStatusMeter(pout, totalLoss);
+
+        // Update SVG Splice Visual Markers
+        renderSpliceMarkers(splices);
+    }
+
+    function updateStatusMeter(pout, totalLoss) {
+        // Quality assessment threshold
+        let statusText = "Segnale Ottimale";
+        let statusClass = "status-good";
+        let barColor = "var(--accent-green)";
+        
+        // Percent calculation (0 dBm to -30 dBm scale)
+        let percent = Math.max(0, Math.min(100, Math.round(((pout + 30) / 30) * 100)));
+        if (pout > 0) percent = 100;
+
+        if (pout < -27) {
+            statusText = "Segnale Critico / Basso";
+            statusClass = "status-bad";
+            barColor = "var(--accent-red)";
+        } else if (pout < -20) {
+            statusText = "Attenuazione Elevata";
+            statusClass = "status-warn";
+            barColor = "var(--accent-amber)";
+        }
+
+        statusBadge.textContent = statusText;
+        statusBadge.className = "status-badge " + statusClass;
+        meterFill.style.width = percent + "%";
+        meterFill.style.backgroundColor = barColor;
+        meterPercent.textContent = percent + "%";
+    }
+
+    function renderSpliceMarkers(count) {
+        spliceMarkersGroup.innerHTML = '';
+        if (count <= 0) return;
+
+        const maxDisplay = Math.min(count, 8);
+        const step = 300 / (maxDisplay + 1);
+
+        for (let i = 1; i <= maxDisplay; i++) {
+            const x = 50 + (i * step);
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x);
+            line.setAttribute("y1", 20);
+            line.setAttribute("x2", x);
+            line.setAttribute("y2", 40);
+            line.setAttribute("stroke", "#f59e0b");
+            line.setAttribute("stroke-width", "2");
+            spliceMarkersGroup.appendChild(line);
+        }
+    }
+
+    // Export TXT Report
+    function exportReportTXT() {
+        const pin = powerInInput.value;
+        const meters = lengthInput.value;
+        const pout = powerOutVal.textContent;
+        const totalLoss = totalLossVal.textContent;
+        const fiberLoss = fiberLossVal.textContent;
+        const extraLoss = extraLossVal.textContent;
+        const status = statusBadge.textContent;
+
+        const reportContent = 
+`=========================================
+      OPTIFIBRA PRO - REPORT COLLAUDO
+=========================================
+Data: ${new Date().toLocaleString('it-IT')}
+
+--- PARAMETRI TRATTA ---
+Potenza Ingresso (Pin):  ${pin} dBm
+Lunghezza Tratta:        ${meters} m (${(meters/1000).toFixed(2)} km)
+Lunghezza d'onda:        ${wavelengthSelect.options[wavelengthSelect.selectedIndex].text}
+Giunzioni a Fusione:     ${splicesInput.value || 0} (0.1 dB cad.)
+Connettori Ottici:       ${connectorsInput.value || 0} (0.5 dB cad.)
+
+--- RISULTATI CALCOLO ---
+Attenuazione Fibra:      ${fiberLoss}
+Attenuazione Accessoria: ${extraLoss}
+ATTENUAZIONE TOTALE:     ${totalLoss}
+POTENZA IN USCITA (Pout):${pout}
+Stato del Segnale:       ${status}
+=========================================`;
+
+        const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Report_OptiFiber_${new Date().toISOString().slice(0,10)}.txt`;
+        link.click();
+    }
+
+    // Export PDF Report
+    function exportReportPDF() {
+        // Fill PDF Template
+        document.getElementById('pdfDate').textContent = new Date().toLocaleString('it-IT');
+        document.getElementById('pdfPin').textContent = powerInInput.value;
+        document.getElementById('pdfLength').textContent = lengthInput.value;
+        document.getElementById('pdfKm').textContent = (parseFloat(lengthInput.value)/1000).toFixed(2);
+        document.getElementById('pdfWavelength').textContent = wavelengthSelect.options[wavelengthSelect.selectedIndex].text;
+        document.getElementById('pdfCoef').textContent = wavelengthSelect.value;
+        document.getElementById('pdfSplices').textContent = splicesInput.value || 0;
+        document.getElementById('pdfConnectors').textContent = connectorsInput.value || 0;
+        
+        document.getElementById('pdfFiberLoss').textContent = fiberLossVal.textContent;
+        document.getElementById('pdfExtraLoss').textContent = extraLossVal.textContent;
+        document.getElementById('pdfTotalLoss').textContent = totalLossVal.textContent;
+        document.getElementById('pdfPout').textContent = powerOutVal.textContent;
+        document.getElementById('pdfStatus').textContent = statusBadge.textContent;
+
+        const element = document.getElementById('pdfReportTemplate');
+        element.style.display = 'block';
+
+        const opt = {
+            margin:       10,
+            filename:     `Report_OptiFiber_${new Date().toISOString().slice(0,10)}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            element.style.display = 'none';
+        });
+    }
+
+    // Copy Summary to Clipboard
+    function copyReportToClipboard() {
+        const text = `OptiFiber Pro -> Pin: ${powerInInput.value} dBm | Tratta: ${lengthInput.value}m | Attenuazione Totale: ${totalLossVal.textContent} | Pout Calcolata: ${powerOutVal.textContent} (${statusBadge.textContent})`;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("Riepilogo copiato negli appunti!");
+        });
+    }
+
+    // Event Listeners for Live Calculation
+    powerInInput.addEventListener('input', calculate);
+    lengthInput.addEventListener('input', calculate);
+    customCoefInput.addEventListener('input', calculate);
+    splicesInput.addEventListener('input', calculate);
+    connectorsInput.addEventListener('input', calculate);
+
+    // Initial run
+    calculate();
+</script>
+
+</body>
+</html>
