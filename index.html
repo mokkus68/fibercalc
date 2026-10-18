@@ -380,7 +380,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
             </svg>
-            OptiFiber Pro
+            OptiCalc Pro
         </h1>
         <p>Calcolo Attenuazione Tratta Fibra Monomodale</p>
     </div>
@@ -790,7 +790,7 @@ Stato del Segnale:       ${status}
 
     // Copy Summary to Clipboard
     function copyReportToClipboard() {
-        const text = `OptiFiber Pro -> Pin: ${powerInInput.value} dBm | Tratta: ${lengthInput.value}m | Attenuazione Totale: ${totalLossVal.textContent} | Pout Calcolata: ${powerOutVal.textContent} (${statusBadge.textContent})`;
+        const text = `OptiCalc Pro -> Pin: ${powerInInput.value} dBm | Tratta: ${lengthInput.value}m | Attenuazione Totale: ${totalLossVal.textContent} | Pout Calcolata: ${powerOutVal.textContent} (${statusBadge.textContent})`;
         navigator.clipboard.writeText(text).then(() => {
             alert("Riepilogo copiato negli appunti!");
         });
