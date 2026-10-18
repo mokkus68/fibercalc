@@ -1,6 +1,6 @@
 {
-  "name": "OptiFiber Pro",
-  "short_name": "OptiFiber",
+  "name": "OptiCalc Pro",
+  "short_name": "OptiCalc",
   "description": "Calcolatore professionale dell'attenuazione per tratte in fibra ottica monomodale.",
   "start_url": "./index.html",
   "display": "standalone",
