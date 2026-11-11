@@ -160,6 +160,17 @@
             transition: all 0.25s ease;
         }
 
+        input:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .hint {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            margin-top: -6px;
+        }
+
         input:focus, select:focus {
             border-color: var(--primary);
             box-shadow: 0 0 12px var(--primary-glow);
@@ -415,7 +426,7 @@
             <span class="badge">dBm</span>
         </div>
         <div class="input-wrapper">
-            <input type="number" id="powerIn" inputmode="text" placeholder="es. 0 o -3.5" value="1">
+            <input type="text" id="powerIn" inputmode="decimal" autocomplete="off" placeholder="es. 0 o -3,5" value="1">
             <button type="button" class="sign-toggle-btn" onclick="toggleSign()">+/-</button>
         </div>
     </div>
@@ -466,6 +477,48 @@
         </div>
     </details>
 
+    <!-- Splitter PON -->
+    <details>
+        <summary>🔀 Aggiungi Splitter (Primario / Secondario)</summary>
+        <div class="details-content">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label for="splitter1Type">Splitter Primario</label>
+                    <select id="splitter1Type" onchange="updateSplitter(1)">
+                        <option value="0" selected>Nessuno</option>
+                        <option value="2">1:2</option>
+                        <option value="4">1:4</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div class="label-row">
+                        <label for="splitter1Loss">Attenuazione</label>
+                        <span class="badge">dB</span>
+                    </div>
+                    <input type="text" id="splitter1Loss" inputmode="decimal" autocomplete="off" value="0" disabled>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label for="splitter2Type">Splitter Secondario</label>
+                    <select id="splitter2Type" onchange="updateSplitter(2)">
+                        <option value="0" selected>Nessuno</option>
+                        <option value="8">1:8</option>
+                        <option value="16">1:16</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div class="label-row">
+                        <label for="splitter2Loss">Attenuazione</label>
+                        <span class="badge">dB</span>
+                    </div>
+                    <input type="text" id="splitter2Loss" inputmode="decimal" autocomplete="off" value="0" disabled>
+                </div>
+            </div>
+            <p class="hint">Valori tipici precompilati (1:2 = 3,7 dB · 1:4 = 7,3 dB · 1:8 = 10,5 dB · 1:16 = 13,7 dB). Modificali in base alla scheda tecnica dello splitter.</p>
+        </div>
+    </details>
+
     <!-- Results Display -->
     <div class="results-card">
         <div class="result-main">
@@ -483,6 +536,10 @@
         <div class="result-row">
             <span style="color: var(--text-sub);">Perdite Accessorie (Giunzioni/Conn.):</span>
             <span class="result-val" id="extraLossVal">1.00 dB</span>
+        </div>
+        <div class="result-row">
+            <span style="color: var(--text-sub);">Perdite Splitter:</span>
+            <span class="result-val" id="splitterLossVal">0.00 dB</span>
         </div>
         <div class="result-row">
             <span style="color: var(--text-sub);">Attenuazione Totale Tratta:</span>
@@ -551,6 +608,14 @@
                 <td>Connettori Ottici</td>
                 <td><span id="pdfConnectors"></span> (0.5 dB cad.)</td>
             </tr>
+            <tr>
+                <td>Splitter Primario</td>
+                <td><span id="pdfSplitter1"></span></td>
+            </tr>
+            <tr>
+                <td>Splitter Secondario</td>
+                <td><span id="pdfSplitter2"></span></td>
+            </tr>
         </tbody>
     </table>
 
@@ -568,6 +633,10 @@
             <tr>
                 <td>Perdite Accessorie (Giunzioni + Connettori)</td>
                 <td><strong id="pdfExtraLoss"></strong> dB</td>
+            </tr>
+            <tr>
+                <td>Perdite Splitter</td>
+                <td><strong id="pdfSplitterLoss"></strong> dB</td>
             </tr>
             <tr>
                 <td><strong>Attenuazione Totale Tratta</strong></td>
@@ -590,6 +659,16 @@
 </div>
 
 <script>
+    // Costanti perdite
+    const SPLICE_LOSS = 0.1;      // dB per giunzione a fusione
+    const CONNECTOR_LOSS = 0.5;   // dB per connettore
+    const SPLITTER_LOSS = {       // dB tipici (max) splitter PLC
+        2: 3.7,
+        4: 7.3,
+        8: 10.5,
+        16: 13.7
+    };
+
     // DOM Elements
     const powerInInput = document.getElementById('powerIn');
     const lengthInput = document.getElementById('length');
@@ -598,86 +677,150 @@
     const customCoefInput = document.getElementById('customCoef');
     const splicesInput = document.getElementById('splicesCount');
     const connectorsInput = document.getElementById('connectorsCount');
+    const splitter1Type = document.getElementById('splitter1Type');
+    const splitter1Loss = document.getElementById('splitter1Loss');
+    const splitter2Type = document.getElementById('splitter2Type');
+    const splitter2Loss = document.getElementById('splitter2Loss');
 
     const powerOutVal = document.getElementById('powerOutVal');
     const fiberLossVal = document.getElementById('fiberLossVal');
     const extraLossVal = document.getElementById('extraLossVal');
+    const splitterLossVal = document.getElementById('splitterLossVal');
     const totalLossVal = document.getElementById('totalLossVal');
     const statusBadge = document.getElementById('statusBadge');
     const meterFill = document.getElementById('meterFill');
     const meterPercent = document.getElementById('meterPercent');
     const spliceMarkersGroup = document.getElementById('spliceMarkersGroup');
 
+    // Ultimo calcolo valido (null se i dati sono errati)
+    let lastResult = null;
+
+    // Numero decimale: accetta virgola o punto, eventuale segno meno
+    function parseNum(str) {
+        const s = String(str).trim().replace(',', '.');
+        if (!/^-?(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
+        return Number(s);
+    }
+
+    // Conteggio intero >= 0 (campo vuoto = 0)
+    function parseCount(str) {
+        const s = String(str).trim();
+        if (s === '') return 0;
+        if (!/^\d+$/.test(s)) return NaN;
+        return parseInt(s, 10);
+    }
+
+    function fmt(n) {
+        return n.toFixed(2);
+    }
+
+    function splitterText(ratio, loss) {
+        return ratio ? `1:${ratio} (${fmt(loss)} dB)` : 'Nessuno';
+    }
+
     // Toggle +/- sign for mobile keyboards
     function toggleSign() {
-        let val = powerInInput.value.trim();
-        if (val.startsWith('-')) {
-            powerInInput.value = val.substring(1);
-        } else if (val !== '' && val !== '0') {
-            powerInInput.value = '-' + val;
-        } else if (val === '0') {
-            powerInInput.value = '-';
-        }
+        const val = powerInInput.value.trim();
+        powerInInput.value = val.startsWith('-') ? val.substring(1) : '-' + val;
+        powerInInput.focus();
         calculate();
     }
 
     function updateWavelength() {
-        if (wavelengthSelect.value === 'custom') {
-            customCoefGroup.style.display = 'block';
+        customCoefGroup.style.display = (wavelengthSelect.value === 'custom') ? 'block' : 'none';
+        calculate();
+    }
+
+    function updateSplitter(n) {
+        const select = n === 1 ? splitter1Type : splitter2Type;
+        const input = n === 1 ? splitter1Loss : splitter2Loss;
+        const ratio = Number(select.value);
+        if (ratio) {
+            input.disabled = false;
+            input.value = String(SPLITTER_LOSS[ratio]).replace('.', ',');
         } else {
-            customCoefGroup.style.display = 'none';
+            input.disabled = true;
+            input.value = '0';
         }
         calculate();
     }
 
+    function showInvalid(message) {
+        lastResult = null;
+        powerOutVal.textContent = "Dati Errati";
+        fiberLossVal.textContent = "-";
+        extraLossVal.textContent = "-";
+        splitterLossVal.textContent = "-";
+        totalLossVal.textContent = "-";
+        statusBadge.textContent = message;
+        statusBadge.className = "status-badge status-bad";
+        meterFill.style.width = "0%";
+        meterPercent.textContent = "-";
+    }
+
     function calculate() {
-        // Parse Inputs replacing comma with dot
-        const pinStr = powerInInput.value.replace(',', '.');
-        const pin = parseFloat(pinStr);
-        const meters = parseFloat(lengthInput.value);
-        
-        let coefPerKm = (wavelengthSelect.value === 'custom') 
-            ? parseFloat(customCoefInput.value) 
-            : parseFloat(wavelengthSelect.value);
+        const pin = parseNum(powerInInput.value);
+        const meters = parseNum(lengthInput.value);
+        const isCustom = wavelengthSelect.value === 'custom';
+        const coefPerKm = isCustom ? parseNum(customCoefInput.value) : Number(wavelengthSelect.value);
+        const splices = parseCount(splicesInput.value);
+        const connectors = parseCount(connectorsInput.value);
+        const sp1Ratio = Number(splitter1Type.value);
+        const sp2Ratio = Number(splitter2Type.value);
+        const sp1Loss = sp1Ratio ? parseNum(splitter1Loss.value) : 0;
+        const sp2Loss = sp2Ratio ? parseNum(splitter2Loss.value) : 0;
 
-        const splices = parseInt(splicesInput.value) || 0;
-        const connectors = parseInt(connectorsInput.value) || 0;
+        let error = null;
+        if (isNaN(pin)) error = "Potenza in ingresso non valida";
+        else if (isNaN(meters) || meters < 0) error = "Lunghezza tratta non valida";
+        else if (isNaN(coefPerKm) || coefPerKm < 0) error = "Coefficiente fibra non valido";
+        else if (isNaN(splices)) error = "Numero giunzioni non valido";
+        else if (isNaN(connectors)) error = "Numero connettori non valido";
+        else if (isNaN(sp1Loss) || sp1Loss < 0) error = "Attenuazione splitter primario non valida";
+        else if (isNaN(sp2Loss) || sp2Loss < 0) error = "Attenuazione splitter secondario non valida";
 
-        if (isNaN(pin) || isNaN(meters) || isNaN(coefPerKm) || meters < 0) {
-            powerOutVal.textContent = "Dati Errati";
-            totalLossVal.textContent = "-";
+        renderMarkers(isNaN(splices) ? 0 : splices, sp1Ratio, sp2Ratio);
+
+        if (error) {
+            showInvalid(error);
             return;
         }
 
         // Calculations
         const km = meters / 1000;
         const fiberLoss = km * coefPerKm;
-        const extraLoss = (splices * 0.1) + (connectors * 0.5);
-        const totalLoss = fiberLoss + extraLoss;
+        const extraLoss = (splices * SPLICE_LOSS) + (connectors * CONNECTOR_LOSS);
+        const splitterLoss = sp1Loss + sp2Loss;
+        const totalLoss = fiberLoss + extraLoss + splitterLoss;
         const pout = pin - totalLoss;
 
         // Display Results
-        powerOutVal.textContent = pout.toFixed(2) + " dBm";
-        fiberLossVal.textContent = fiberLoss.toFixed(2) + " dB";
-        extraLossVal.textContent = extraLoss.toFixed(2) + " dB";
-        totalLossVal.textContent = totalLoss.toFixed(2) + " dB";
+        powerOutVal.textContent = fmt(pout) + " dBm";
+        fiberLossVal.textContent = fmt(fiberLoss) + " dB";
+        extraLossVal.textContent = fmt(extraLoss) + " dB";
+        splitterLossVal.textContent = fmt(splitterLoss) + " dB";
+        totalLossVal.textContent = fmt(totalLoss) + " dB";
 
-        // Update Signal Quality Meter & Badges
-        updateStatusMeter(pout, totalLoss);
+        const status = updateStatusMeter(pout);
 
-        // Update SVG Splice Visual Markers
-        renderSpliceMarkers(splices);
+        lastResult = {
+            pin, meters, km, coefPerKm,
+            wavelengthText: isCustom
+                ? `Personalizzato (${coefPerKm} dB/km)`
+                : wavelengthSelect.options[wavelengthSelect.selectedIndex].text,
+            splices, connectors,
+            sp1Ratio, sp1Loss, sp2Ratio, sp2Loss,
+            fiberLoss, extraLoss, splitterLoss, totalLoss, pout, status
+        };
     }
 
-    function updateStatusMeter(pout, totalLoss) {
-        // Quality assessment threshold
+    function updateStatusMeter(pout) {
         let statusText = "Segnale Ottimale";
         let statusClass = "status-good";
         let barColor = "var(--accent-green)";
-        
+
         // Percent calculation (0 dBm to -30 dBm scale)
-        let percent = Math.max(0, Math.min(100, Math.round(((pout + 30) / 30) * 100)));
-        if (pout > 0) percent = 100;
+        const percent = Math.max(0, Math.min(100, Math.round(((pout + 30) / 30) * 100)));
 
         if (pout < -27) {
             statusText = "Segnale Critico / Basso";
@@ -694,57 +837,80 @@
         meterFill.style.width = percent + "%";
         meterFill.style.backgroundColor = barColor;
         meterPercent.textContent = percent + "%";
+        return statusText;
     }
 
-    function renderSpliceMarkers(count) {
+    function svgEl(tag, attrs, text) {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        if (text) el.textContent = text;
+        return el;
+    }
+
+    function renderMarkers(spliceCount, sp1Ratio, sp2Ratio) {
         spliceMarkersGroup.innerHTML = '';
-        if (count <= 0) return;
 
-        const maxDisplay = Math.min(count, 8);
+        // Giunzioni
+        const maxDisplay = Math.min(spliceCount, 8);
         const step = 300 / (maxDisplay + 1);
-
         for (let i = 1; i <= maxDisplay; i++) {
             const x = 50 + (i * step);
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", x);
-            line.setAttribute("y1", 20);
-            line.setAttribute("x2", x);
-            line.setAttribute("y2", 40);
-            line.setAttribute("stroke", "#f59e0b");
-            line.setAttribute("stroke-width", "2");
-            spliceMarkersGroup.appendChild(line);
+            spliceMarkersGroup.appendChild(svgEl("line", {
+                x1: x, y1: 20, x2: x, y2: 40, stroke: "#f59e0b", "stroke-width": 2
+            }));
         }
+
+        // Splitter (primario a 1/3, secondario a 2/3 della tratta)
+        const drawSplitter = (x, ratio) => {
+            spliceMarkersGroup.appendChild(svgEl("rect", {
+                x: x - 16, y: 17, width: 32, height: 26, rx: 4,
+                fill: "#0f172a", stroke: "#22c55e", "stroke-width": 1.5
+            }));
+            spliceMarkersGroup.appendChild(svgEl("text", {
+                x: x, y: 33, "font-size": 9, fill: "#22c55e",
+                "text-anchor": "middle", "font-weight": "bold"
+            }, "1:" + ratio));
+        };
+        if (sp1Ratio) drawSplitter(147, sp1Ratio);
+        if (sp2Ratio) drawSplitter(253, sp2Ratio);
+    }
+
+    function requireValidResult() {
+        if (!lastResult) {
+            alert("Dati non validi: correggi i valori prima di esportare.");
+            return false;
+        }
+        return true;
     }
 
     // Export TXT Report
     function exportReportTXT() {
-        const pin = powerInInput.value;
-        const meters = lengthInput.value;
-        const pout = powerOutVal.textContent;
-        const totalLoss = totalLossVal.textContent;
-        const fiberLoss = fiberLossVal.textContent;
-        const extraLoss = extraLossVal.textContent;
-        const status = statusBadge.textContent;
+        if (!requireValidResult()) return;
+        const r = lastResult;
 
-        const reportContent = 
+        const reportContent =
 `=========================================
       OPTICALC PRO - REPORT COLLAUDO
 =========================================
 Data: ${new Date().toLocaleString('it-IT')}
 
 --- PARAMETRI TRATTA ---
-Potenza Ingresso (Pin):  ${pin} dBm
-Lunghezza Tratta:        ${meters} m (${(meters/1000).toFixed(2)} km)
-Lunghezza d'onda:        ${wavelengthSelect.options[wavelengthSelect.selectedIndex].text}
-Giunzioni a Fusione:     ${splicesInput.value || 0} (0.1 dB cad.)
-Connettori Ottici:       ${connectorsInput.value || 0} (0.5 dB cad.)
+Potenza Ingresso (Pin):  ${r.pin} dBm
+Lunghezza Tratta:        ${r.meters} m (${r.km.toFixed(3)} km)
+Lunghezza d'onda:        ${r.wavelengthText}
+Coefficiente Fibra:      ${r.coefPerKm} dB/km
+Giunzioni a Fusione:     ${r.splices} (${SPLICE_LOSS} dB cad.)
+Connettori Ottici:       ${r.connectors} (${CONNECTOR_LOSS} dB cad.)
+Splitter Primario:       ${splitterText(r.sp1Ratio, r.sp1Loss)}
+Splitter Secondario:     ${splitterText(r.sp2Ratio, r.sp2Loss)}
 
 --- RISULTATI CALCOLO ---
-Attenuazione Fibra:      ${fiberLoss}
-Attenuazione Accessoria: ${extraLoss}
-ATTENUAZIONE TOTALE:     ${totalLoss}
-POTENZA IN USCITA (Pout):${pout}
-Stato del Segnale:       ${status}
+Attenuazione Fibra:      ${fmt(r.fiberLoss)} dB
+Attenuazione Accessoria: ${fmt(r.extraLoss)} dB
+Perdite Splitter:        ${fmt(r.splitterLoss)} dB
+ATTENUAZIONE TOTALE:     ${fmt(r.totalLoss)} dB
+POTENZA IN USCITA (Pout): ${fmt(r.pout)} dBm
+Stato del Segnale:       ${r.status}
 =========================================`;
 
         const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
@@ -756,21 +922,31 @@ Stato del Segnale:       ${status}
 
     // Export PDF Report
     function exportReportPDF() {
-        // Fill PDF Template
-        document.getElementById('pdfDate').textContent = new Date().toLocaleString('it-IT');
-        document.getElementById('pdfPin').textContent = powerInInput.value;
-        document.getElementById('pdfLength').textContent = lengthInput.value;
-        document.getElementById('pdfKm').textContent = (parseFloat(lengthInput.value)/1000).toFixed(2);
-        document.getElementById('pdfWavelength').textContent = wavelengthSelect.options[wavelengthSelect.selectedIndex].text;
-        document.getElementById('pdfCoef').textContent = wavelengthSelect.value;
-        document.getElementById('pdfSplices').textContent = splicesInput.value || 0;
-        document.getElementById('pdfConnectors').textContent = connectorsInput.value || 0;
-        
-        document.getElementById('pdfFiberLoss').textContent = fiberLossVal.textContent;
-        document.getElementById('pdfExtraLoss').textContent = extraLossVal.textContent;
-        document.getElementById('pdfTotalLoss').textContent = totalLossVal.textContent;
-        document.getElementById('pdfPout').textContent = powerOutVal.textContent;
-        document.getElementById('pdfStatus').textContent = statusBadge.textContent;
+        if (!requireValidResult()) return;
+        if (typeof html2pdf === 'undefined') {
+            alert("Esportazione PDF non disponibile: serve una connessione internet.");
+            return;
+        }
+        const r = lastResult;
+        const set = (id, val) => { document.getElementById(id).textContent = val; };
+
+        set('pdfDate', new Date().toLocaleString('it-IT'));
+        set('pdfPin', r.pin);
+        set('pdfLength', r.meters);
+        set('pdfKm', r.km.toFixed(3));
+        set('pdfWavelength', r.wavelengthText);
+        set('pdfCoef', r.coefPerKm);
+        set('pdfSplices', r.splices);
+        set('pdfConnectors', r.connectors);
+        set('pdfSplitter1', splitterText(r.sp1Ratio, r.sp1Loss));
+        set('pdfSplitter2', splitterText(r.sp2Ratio, r.sp2Loss));
+
+        set('pdfFiberLoss', fmt(r.fiberLoss));
+        set('pdfExtraLoss', fmt(r.extraLoss));
+        set('pdfSplitterLoss', fmt(r.splitterLoss));
+        set('pdfTotalLoss', fmt(r.totalLoss));
+        set('pdfPout', fmt(r.pout));
+        set('pdfStatus', r.status);
 
         const element = document.getElementById('pdfReportTemplate');
         element.style.display = 'block';
@@ -790,18 +966,24 @@ Stato del Segnale:       ${status}
 
     // Copy Summary to Clipboard
     function copyReportToClipboard() {
-        const text = `OptiCalc Pro -> Pin: ${powerInInput.value} dBm | Tratta: ${lengthInput.value}m | Attenuazione Totale: ${totalLossVal.textContent} | Pout Calcolata: ${powerOutVal.textContent} (${statusBadge.textContent})`;
-        navigator.clipboard.writeText(text).then(() => {
-            alert("Riepilogo copiato negli appunti!");
-        });
+        if (!requireValidResult()) return;
+        const r = lastResult;
+        let splitters = '';
+        if (r.sp1Ratio || r.sp2Ratio) {
+            const parts = [];
+            if (r.sp1Ratio) parts.push(`1:${r.sp1Ratio}`);
+            if (r.sp2Ratio) parts.push(`1:${r.sp2Ratio}`);
+            splitters = ` | Splitter: ${parts.join(' + ')} (${fmt(r.splitterLoss)} dB)`;
+        }
+        const text = `OptiCalc Pro -> Pin: ${r.pin} dBm | Tratta: ${r.meters}m${splitters} | Attenuazione Totale: ${fmt(r.totalLoss)} dB | Pout Calcolata: ${fmt(r.pout)} dBm (${r.status})`;
+        navigator.clipboard.writeText(text)
+            .then(() => alert("Riepilogo copiato negli appunti!"))
+            .catch(() => alert("Impossibile copiare negli appunti."));
     }
 
     // Event Listeners for Live Calculation
-    powerInInput.addEventListener('input', calculate);
-    lengthInput.addEventListener('input', calculate);
-    customCoefInput.addEventListener('input', calculate);
-    splicesInput.addEventListener('input', calculate);
-    connectorsInput.addEventListener('input', calculate);
+    [powerInInput, lengthInput, customCoefInput, splicesInput, connectorsInput, splitter1Loss, splitter2Loss]
+        .forEach(el => el.addEventListener('input', calculate));
 
     // Initial run
     calculate();
