@@ -368,6 +368,14 @@
             font-size: 0.9rem;
         }
 
+        #pdfReportTemplate td:first-child {
+            width: 55%;
+        }
+
+        #pdfReportTemplate tr {
+            page-break-inside: avoid;
+        }
+
         #pdfReportTemplate th {
             background-color: #f1f5f9;
         }
@@ -955,13 +963,16 @@ Stato del Segnale:       ${r.status}
             margin:       10,
             filename:     `Report_OptiFiber_${new Date().toISOString().slice(0,10)}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            // scrollX/scrollY a 0: senza, se la pagina è scorsa (es. su telefono)
+            // il report viene "fotografato" spostato e risulta tagliato
+            html2canvas:  { scale: 2, scrollX: 0, scrollY: 0 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['css', 'legacy'], avoid: 'tr' }
         };
 
-        html2pdf().set(opt).from(element).save().then(() => {
-            element.style.display = 'none';
-        });
+        html2pdf().set(opt).from(element).save()
+            .catch(() => alert("Errore durante la creazione del PDF."))
+            .finally(() => { element.style.display = 'none'; });
     }
 
     // Copy Summary to Clipboard
