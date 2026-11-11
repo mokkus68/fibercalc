@@ -13,3 +13,8 @@ Applicazione web professionale ideata per tecnici, giuntisti e progettisti di re
   - **PDF:** Genera e scarica una scheda collaudo formattata pronta per la stampa o l'invio.
   - **TXT:** Genera un report di testo leggero ed essenziale.
   - **Appunti:** Copia rapida in un tap di un riepilogo per chat o note di cantiere.
+
+---
+
+**Versione:** 1.2.0  
+© 2026 Mocus + Claude IA

@@ -81,6 +81,26 @@
             gap: 8px;
         }
 
+        .version-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            color: var(--primary);
+            -webkit-text-fill-color: var(--primary);
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            padding: 2px 7px;
+            border-radius: 6px;
+            align-self: center;
+        }
+
+        .app-footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-sub);
+        }
+
         .header p {
             font-size: 0.85rem;
             color: var(--text-sub);
@@ -400,6 +420,7 @@
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
             </svg>
             OptiCalc Pro
+            <span class="version-badge" id="appVersion">v1.2.0</span>
         </h1>
         <p>Calcolo Attenuazione Tratta Fibra Monomodale</p>
     </div>
@@ -578,11 +599,13 @@
             📋 Copia Riepilogo negli Appunti
         </button>
     </div>
+
+    <div class="app-footer" id="appCopyright">© 2026 Mocus + Claude IA</div>
 </div>
 
 <!-- Hidden PDF Report Template -->
 <div id="pdfReportTemplate">
-    <h2>OptiCalc Pro - Report Collaudo Tratta Fibra</h2>
+    <h2>OptiCalc Pro <span id="pdfVersion" style="font-size: 0.8rem; font-weight: normal;">v1.2.0</span> - Report Collaudo Tratta Fibra</h2>
     <p><strong>Data Report:</strong> <span id="pdfDate"></span></p>
     
     <table>
@@ -662,11 +685,21 @@
     </table>
 
     <div class="pdf-footer">
-        Generato con OptiCalc Pro App - Strumento di verifica e calcolo per reti in fibra ottica monomodale.
+        Generato con OptiCalc Pro App - Strumento di verifica e calcolo per reti in fibra ottica monomodale.<br>
+        <span id="pdfCopyright">© 2026 Mocus + Claude IA</span>
     </div>
 </div>
 
 <script>
+    // Versione e copyright (modificare solo qui)
+    const APP_VERSION = '1.2.0';
+    const COPYRIGHT = "© 2026 Mocus + Claude IA";
+
+    document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
+    document.getElementById('pdfVersion').textContent = 'v' + APP_VERSION;
+    document.getElementById('appCopyright').textContent = COPYRIGHT;
+    document.getElementById('pdfCopyright').textContent = COPYRIGHT;
+
     // Costanti perdite
     const SPLICE_LOSS = 0.1;      // dB per giunzione a fusione
     const CONNECTOR_LOSS = 0.5;   // dB per connettore
@@ -898,7 +931,7 @@
 
         const reportContent =
 `=========================================
-      OPTICALC PRO - REPORT COLLAUDO
+   OPTICALC PRO v${APP_VERSION} - REPORT COLLAUDO
 =========================================
 Data: ${new Date().toLocaleString('it-IT')}
 
@@ -919,7 +952,8 @@ Perdite Splitter:        ${fmt(r.splitterLoss)} dB
 ATTENUAZIONE TOTALE:     ${fmt(r.totalLoss)} dB
 POTENZA IN USCITA (Pout): ${fmt(r.pout)} dBm
 Stato del Segnale:       ${r.status}
-=========================================`;
+=========================================
+${COPYRIGHT}`;
 
         const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
         const link = document.createElement('a');
