@@ -7,6 +7,7 @@ Applicazione web professionale ideata per tecnici, giuntisti e progettisti di re
 - **Compatibilità Tastiera Samsung/Mobile:** Include il pulsante dedicato `+/-` per cambiare istantaneamente il segno senza dipendere dai tasti della tastiera virtuale.
 - **Supporto Virgola e Punto:** Accetta automaticamente sia la virgola `,` che il punto `.` come separatori decimali.
 - **Calcolo Completo Tratta:** Calcola l'attenuazione della fibra in base alla lunghezza in metri, alla finestra spettrale, al numero di giunzioni a fusione e connettori ottici.
+- **Splitter PON:** Possibilità di inserire uno splitter primario (1:2 o 1:4) e uno secondario (1:8 o 1:16), con attenuazione tipica precompilata e modificabile secondo la scheda tecnica.
 - **Animazione SVG Fascio Laser:** Schema visivo animato in tempo reale con indicazione delle giunzioni.
 - **Esportazione Report:**
   - **PDF:** Genera e scarica una scheda collaudo formattata pronta per la stampa o l'invio.
